@@ -1,0 +1,50 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import ScrollIndicator from '@/components/ScrollIndicator.astro';
+---
+
+<Layout title='OATI'>
+	<div class='page-root'>
+		<main id='scroll-container' class='scroll-container' aria-label='Page content'>
+			<section class='scroll-section'></section>
+		</main>
+
+		<div class='stage-fixed' aria-hidden='false'>
+			<canvas id='threejsCanvas'></canvas>
+
+			<ScrollIndicator />
+		</div>
+	</div>
+
+	<script src='@/scripts/threejs.js'></script>
+	<script>
+		declare global {
+			interface Window {
+				lenisManager: any;
+			}
+		}
+
+		// Prevent browser scroll restoration and reset scroll position immediately
+		if ('scrollRestoration' in history) {
+			history.scrollRestoration = 'manual';
+		}
+		window.scrollTo(0, 0);
+
+		document.addEventListener('DOMContentLoaded', () => {
+			window.scrollTo(0, 0);
+
+			setTimeout(() => {
+				if (window.lenisManager) {
+					window.lenisManager.scrollToTop();
+				}
+			}, 100);
+		});
+
+		window.addEventListener('pageshow', (event) => {
+			window.scrollTo(0, 0);
+			if (window.lenisManager) {
+				window.lenisManager.scrollToTop();
+			}
+		});
+	</script>
+</Layout>
