@@ -9,6 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { TAARenderPass } from 'three/addons/postprocessing/TAARenderPass.js';
+import Stats from 'three/addons/libs/stats.module.js';
 
 const canvas = document.getElementById('threejsCanvas');
 const scrollIndicator = document.getElementById('scroll-indicator');
@@ -16,7 +17,6 @@ const scene = new THREE.Scene();
 const lenisAPI = createLenisManager();
 
 const params = {
-	threshold: 0,
 	strength: 0.3,
 	radius: 0,
 	exposure: 3,
@@ -31,6 +31,7 @@ let composer = null;
 let bloomPass = null;
 let taaRenderPass = null;
 let gui = null;
+let stats = null;
 
 const renderer = new THREE.WebGLRenderer({
 	canvas,
@@ -44,6 +45,11 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
 renderer.toneMapping = THREE.ReinhardToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// Initialize Stats for FPS monitoring
+stats = new Stats();
+stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+document.body.appendChild(stats.dom);
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('/');
@@ -96,7 +102,7 @@ function setupPostProcessing() {
 	taaRenderPass.sampleLevel = params.taaSampleLevel;
 	composer.addPass(taaRenderPass);
 
-	bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), params.strength, params.radius, params.threshold);
+	bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), params.strength, params.radius, 0);
 	composer.addPass(bloomPass);
 
 	const outputPass = new OutputPass();
@@ -106,42 +112,49 @@ function setupPostProcessing() {
 function setupGUI() {
 	gui = new GUI();
 
-	const bloomFolder = gui.addFolder('bloom');
-	bloomFolder.add(params, 'threshold', 0.0, 1.0).onChange((value) => {
-		if (bloomPass) bloomPass.threshold = value;
-	});
-	bloomFolder.add(params, 'strength', 0.0, 3.0).onChange((value) => {
-		if (bloomPass) bloomPass.strength = value;
-	});
-	bloomFolder
+	// Hide the title bar to show just clean sliders
+	const guiElement = gui.domElement;
+	const titleElement = guiElement.querySelector('.title');
+	if (titleElement) {
+		titleElement.style.display = 'none';
+	}
+
+	// Add all controls directly to the main GUI
+	gui
+		.add(params, 'strength', 0.0, 3.0)
+		.name('bloom strength')
+		.onChange((value) => {
+			if (bloomPass) bloomPass.strength = value;
+		});
+	gui
 		.add(params, 'radius', 0.0, 1.0)
 		.step(0.01)
+		.name('bloom radius')
 		.onChange((value) => {
 			if (bloomPass) bloomPass.radius = value;
 		});
-
-	const materialFolder = gui.addFolder('material');
-	materialFolder.add(params, 'opacity', 0.0, 1.0).onChange((value) => {
-		updateMaterialOpacity(value);
-	});
-
-	const toneMappingFolder = gui.addFolder('tone mapping');
-	toneMappingFolder.add(params, 'exposure', 0.1, 5).onChange((value) => {
+	gui
+		.add(params, 'opacity', 0.0, 1.0)
+		.name('spline opacity')
+		.onChange((value) => {
+			updateMaterialOpacity(value);
+		});
+	gui.add(params, 'exposure', 0.1, 5).onChange((value) => {
 		renderer.toneMappingExposure = Math.pow(value, 4.0);
 	});
-
-	const taaFolder = gui.addFolder('TAA');
-	taaFolder.add(params, 'taaSampleLevel', 0, 3, 1).onChange((value) => {
-		if (taaRenderPass) {
-			taaRenderPass.sampleLevel = value;
-		}
-	});
+	gui
+		.add(params, 'taaSampleLevel', 0, 3, 1)
+		.name('tta antialiasing')
+		.onChange((value) => {
+			if (taaRenderPass) {
+				taaRenderPass.sampleLevel = value;
+			}
+		});
 }
 
 function applyInitialSettings() {
 	updateMaterialOpacity(params.opacity);
 	if (bloomPass) {
-		bloomPass.threshold = params.threshold;
 		bloomPass.strength = params.strength;
 		bloomPass.radius = params.radius;
 	}
@@ -178,6 +191,8 @@ window.addEventListener('resize', () => {
 });
 
 const tick = () => {
+	stats.begin();
+
 	lenisAPI.update();
 
 	if (camera) {
@@ -188,6 +203,7 @@ const tick = () => {
 		}
 	}
 
+	stats.end();
 	requestAnimationFrame(tick);
 };
 

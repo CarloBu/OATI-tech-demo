@@ -60,7 +60,7 @@ html::-webkit-scrollbar {
 	width: 100vw;
 	height: 100vh;
 	z-index: 30;
-	pointer-events: none;
+	pointer-events: auto;
 }
 
 .scroll-section {
